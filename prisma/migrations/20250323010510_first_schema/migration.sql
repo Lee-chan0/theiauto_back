@@ -1,7 +1,9 @@
 -- CreateTable
 CREATE TABLE `Admin` (
     `userId` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
     `loginId` VARCHAR(191) NOT NULL,
+    `profileImg` TEXT NULL,
     `email` VARCHAR(191) NOT NULL,
     `password` VARCHAR(191) NOT NULL,
     `rank` ENUM('편집장', '기자') NOT NULL,
@@ -19,7 +21,8 @@ CREATE TABLE `Article` (
     `articleBanner` VARCHAR(191) NOT NULL,
     `articleTitle` TEXT NOT NULL,
     `articleSubTitle` TEXT NOT NULL,
-    `articleContent` TEXT NOT NULL,
+    `articleContent` MEDIUMTEXT NOT NULL,
+    `isImportant` BOOLEAN NOT NULL DEFAULT false,
     `views` INTEGER NOT NULL DEFAULT 0,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
@@ -63,8 +66,9 @@ CREATE TABLE `ArticleTag` (
 CREATE TABLE `Category` (
     `categoryId` INTEGER NOT NULL AUTO_INCREMENT,
     `categoryName` VARCHAR(191) NOT NULL,
+    `parentCategoryId` INTEGER NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
+    `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`categoryId`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -83,3 +87,6 @@ ALTER TABLE `ArticleTag` ADD CONSTRAINT `ArticleTag_articleId_fkey` FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE `ArticleTag` ADD CONSTRAINT `ArticleTag_tagId_fkey` FOREIGN KEY (`tagId`) REFERENCES `Tag`(`tagId`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Category` ADD CONSTRAINT `Category_parentCategoryId_fkey` FOREIGN KEY (`parentCategoryId`) REFERENCES `Category`(`categoryId`) ON DELETE SET NULL ON UPDATE CASCADE;

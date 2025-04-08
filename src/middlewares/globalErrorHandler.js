@@ -1,8 +1,41 @@
-export const globalErrorHandler = (err, req, res, next) => {
-  console.error(err.stack); // 에러가 어디에서 발생했는지 콜스택을 로그로 찍어줌
+const validationMessage = {
+  articleTitle: '제목은 8글자 이상 50글자 이하로 해주세요.',
+  articleSubTitle: '소제목은 8글자 이상 50글자 이하로 해주세요.',
+  articleContent: '본문은 필수 항목입니다.',
+  tagName: '태그는 필수 항목입니다.',
+  categoryId: '카테고리를 선택해주세요.'
+};
 
-  res.status(err.status || 500).json({ // 에러 객체에 status가 있으면 그것을 사용하고, 없으면 500코드를 반환함
-    status: "error", // JSON형식으로 알려주는데 status : "error"는 에러라는것을 알려주는것이고
-    message: err.message || "Server Error" // err객체에 message가 있으면 그것을 출력. 없으면 "Server Error"출력
+const validationArray = ['articleTitle', 'articleSubTitle', 'articleContent', 'tagName', 'categoryId'];
+
+export const globalErrorHandler = (err, req, res, next) => {
+  let validationMsg = "";
+
+  console.log('전역 에러 미들웨어');
+  console.log(err.name);
+  console.log('에러메세지 : ', err.message);
+
+
+  if (err.name === 'ValidationError') {
+    validationArray.forEach((item) => {
+      if (err.message.startsWith(`"${item}"`)) {
+        validationMsg = item;
+      }
+    })
+    return res.status(400).json({
+      status: 'ValidationError',
+      message: validationMessage[validationMsg],
+    });
+  }
+  else if (err.name === 'TokenExpiredError') {
+    return res.status(403).json({
+      status: 'jwt expired',
+      message: '세션이 만료되었습니다. 다시 로그인 해주세요.'
+    })
+  }
+
+  res.status(err.status || 500).json({
+    status: "error",
+    message: err.message || "Server Error"
   });
 }
