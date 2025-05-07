@@ -6,6 +6,9 @@ import cors from 'cors';
 import categoryRouter from './Routes/categoryRouter.js';
 import articleRouter from './Routes/articleRouter.js';
 import cookieParser from 'cookie-parser';
+import { startPublishScheduler } from './utils/ScheduledArticle/startPublishScheduler.js';
+import articleUserRouter from './Routes/articleUserRouter.js';
+import categoryUserRouter from './Routes/categoryUserRouter.js';
 
 dotenv.config();
 
@@ -20,6 +23,7 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use('/theiauto/server/api/general', [articleUserRouter, categoryUserRouter]);
 app.use('/theiauto/server/api', [userRouter, categoryRouter, articleRouter]);
 app.use(globalErrorHandler);
 
@@ -27,6 +31,7 @@ app.get('/', (req, res) => {
   res.send('theiauto server');
 });
 
+startPublishScheduler();
 
 app.listen(PORT, () => {
   console.log('DEV SERVER OPEN');

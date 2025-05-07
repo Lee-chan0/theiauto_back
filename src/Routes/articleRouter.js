@@ -8,10 +8,121 @@ import { articleSchema } from '../Validation/articleValidate.js';
 import { bannerImageUpload } from '../utils/bannerImageUpload.js';
 import { articleImageUpload } from '../utils/articleImageUpload.js';
 import { articleContentImgUpload } from '../utils/articleContentImgUpload.js';
+import { tagFiltering } from '../utils/tagFiltering.js';
 
 const articleRouter = express.Router();
 
 const CDN_URL = 'https://pnkokogkwsgf27818223.gcdn.ntruss.com';
+
+
+articleRouter.get('/search/article', authMiddleware, async (req, res, next) => {
+  try {
+    const { categoryId, searchQuery } = req.query;
+    const page = +req.query.page || 1;
+    const limit = +req.query.limit || 15;
+    const offset = (page - 1) * limit;
+
+    if (searchQuery.trim() === "") return res.status(401).json({ message: "검색어는 한 글자 이상 작성해주세요." });
+
+    let total;
+    let findArticles;
+
+    if (categoryId === "none") {
+      findArticles = await prisma.article.findMany({
+        where: {
+          articleStatus: 'publish',
+          articleTitle: {
+            contains: searchQuery
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          articleId: true,
+          articleTitle: true,
+          isImportant: true,
+          isBanner: true,
+          articleStatus: true,
+          createdAt: true,
+          category: {
+            select: {
+              categoryName: true
+            }
+          },
+          admin: {
+            select: {
+              name: true,
+              rank: true,
+            }
+          }
+        },
+        skip: offset,
+        take: limit
+      });
+
+      total = await prisma.article.count({
+        where: {
+          articleStatus: 'publish',
+          articleTitle: {
+            contains: searchQuery
+          }
+        }
+      })
+    } else {
+      findArticles = await prisma.article.findMany({
+        where: {
+          CategoryId: +categoryId,
+          articleStatus: 'publish',
+          articleTitle: {
+            contains: searchQuery
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          articleId: true,
+          articleTitle: true,
+          isImportant: true,
+          isBanner: true,
+          articleStatus: true,
+          createdAt: true,
+          category: {
+            select: {
+              categoryName: true
+            }
+          },
+          admin: {
+            select: {
+              name: true,
+              rank: true,
+            }
+          }
+        },
+        skip: offset,
+        take: limit
+      });
+
+      total = await prisma.article.count({
+        where: {
+          CategoryId: +categoryId,
+          articleStatus: 'publish',
+          articleTitle: {
+            contains: searchQuery
+          }
+        }
+      })
+    }
+
+    return res.status(201).json({
+      filteredArticles: findArticles, total, page,
+      totalPage: Math.ceil(total / limit)
+    })
+  } catch (e) {
+    next(e);
+  }
+})
 
 articleRouter.get('/article/important', authMiddleware, async (req, res, next) => {
   try {
@@ -22,7 +133,8 @@ articleRouter.get('/article/important', authMiddleware, async (req, res, next) =
 
     const findImportantArticle = await prisma.article.findMany({
       where: {
-        isImportant: true
+        isImportant: true,
+        articleStatus: 'publish'
       },
       skip: offset,
       take: limit,
@@ -31,7 +143,9 @@ articleRouter.get('/article/important', authMiddleware, async (req, res, next) =
         articleId: true,
         articleTitle: true,
         isImportant: true,
+        isBanner: true,
         createdAt: true,
+        articleStatus: true,
         category: {
           select: {
             categoryName: true
@@ -46,7 +160,7 @@ articleRouter.get('/article/important', authMiddleware, async (req, res, next) =
       }
     });
 
-    const total = await prisma.article.count({ where: { isImportant: true } });
+    const total = await prisma.article.count({ where: { isImportant: true, articleStatus: 'publish' } });
 
     return res.status(201).json({
       filteredArticles: findImportantArticle, total, page,
@@ -62,14 +176,14 @@ articleRouter.get('/article/category/:categoryId', authMiddleware, async (req, r
     const { categoryId } = req.params;
     const page = +req.query.page || 1;
     const limit = +req.query.limit || 15;
-    console.log(categoryId);
 
     const offset = (page - 1) * limit;
 
     if (categoryId !== "none" || categoryId === undefined) {
       const filteredArticles = await prisma.article.findMany({
         where: {
-          CategoryId: +categoryId
+          CategoryId: +categoryId,
+          articleStatus: 'publish',
         },
         skip: offset,
         take: limit,
@@ -78,6 +192,8 @@ articleRouter.get('/article/category/:categoryId', authMiddleware, async (req, r
           articleId: true,
           articleTitle: true,
           isImportant: true,
+          isBanner: true,
+          articleStatus: true,
           createdAt: true,
           category: {
             select: {
@@ -105,6 +221,7 @@ articleRouter.get('/article/category/:categoryId', authMiddleware, async (req, r
       });
     } else {
       const articles = await prisma.article.findMany({
+        where: { articleStatus: 'publish' },
         skip: offset,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -112,6 +229,8 @@ articleRouter.get('/article/category/:categoryId', authMiddleware, async (req, r
           articleId: true,
           articleTitle: true,
           isImportant: true,
+          isBanner: true,
+          articleStatus: true,
           createdAt: true,
           category: {
             select: {
@@ -176,9 +295,16 @@ articleRouter.post('/article', upload.fields([
     const { error, value } = articleSchema.validate(req.body, { allowUnknown: true });
     if (error) return next(error);
 
-    let { articleTitle, articleSubTitle, articleContent, categoryId, tagName } = value;
-    let { needfulDelUrl } = req.body;
+    let { articleTitle, articleSubTitle, isBanner,
+      articleContent, categoryId, tagName } = value;
+    let { needfulDelUrl, articleStatus, publishTime } = req.body;
     const userId = req.user;
+
+    isBanner = isBanner === "true";
+
+    tagName = tagFiltering(isArray(tagName));
+
+    const isScheduled = articleStatus === 'scheduled';
 
     if (needfulDelUrl) {
       const tempStorage = await prisma.articleContentTempStorage.findMany({
@@ -217,18 +343,38 @@ articleRouter.post('/article', upload.fields([
     const uploadImageUrls = await articleImageUpload(imageFiles, CDN_URL);
 
     const result = await prisma.$transaction(async (tx) => {
+      if (isBanner === true) {
+        const currentBannerArticles = await tx.article.findMany({
+          where: { isBanner: true },
+          orderBy: { bannerTime: 'asc' },
+          take: 3
+        });
+
+        if (currentBannerArticles.length >= 3) {
+          const oldest = currentBannerArticles[0];
+          await tx.article.update({
+            where: { articleId: oldest.articleId },
+            data: {
+              isBanner: false
+            }
+          });
+        }
+      }
+
       const createArticle = await tx.article.create({
         data: {
           articleBanner: bannerImageUrl,
           articleTitle,
           articleSubTitle,
           articleContent,
+          articleStatus,
+          publishedAt: isScheduled ? new Date(publishTime) : new Date(),
+          isBanner: isBanner === true,
+          bannerTime: isBanner === true ? new Date() : null,
           AdminId: userId,
           CategoryId: +categoryId,
           ArticleImage: {
-            create: uploadImageUrls.map((url) => ({
-              articleImageUrl: url
-            }))
+            create: uploadImageUrls.map((url) => ({ articleImageUrl: url }))
           },
           ArticleTag: {
             create: connectOrCreateTags.map((tag) => ({
@@ -239,9 +385,7 @@ articleRouter.post('/article', upload.fields([
         include: {
           ArticleImage: true,
           ArticleTag: {
-            include: {
-              tag: true,
-            }
+            include: { tag: true }
           }
         }
       });
@@ -284,9 +428,13 @@ articleRouter.patch('/article/:articleId', upload.fields([
     }
 
     let { articleTitle, articleSubTitle,
-      articleContent, categoryId,
+      articleContent, categoryId, isBanner,
       tagName } = value;
     let { articleBanner, articleImageUrl } = req.body;
+
+    isBanner = isBanner === "true";
+
+    tagName = tagFiltering(isArray(tagName));
 
     articleImageUrl = articleImageUrl ? isArray(articleImageUrl) : [];
 
@@ -321,6 +469,27 @@ articleRouter.patch('/article/:articleId', upload.fields([
     }
 
     const updateArticle = await prisma.$transaction(async (tx) => {
+      if (isBanner === true) {
+        const currentBannerArticles = await tx.article.findMany({
+          where: {
+            isBanner: true,
+            articleId: { not: +articleId }
+          },
+          orderBy: { bannerTime: 'asc' },
+          take: 3
+        });
+
+        if (currentBannerArticles.length >= 3) {
+          const oldest = currentBannerArticles[0];
+          await tx.article.update({
+            where: { articleId: oldest.articleId },
+            data: {
+              isBanner: false
+            }
+          });
+        }
+      }
+
       const upadted = await tx.article.update({
         where: { articleId: +articleId },
         data: {
@@ -329,6 +498,8 @@ articleRouter.patch('/article/:articleId', upload.fields([
           articleContent,
           articleBanner: bannerImageUrl,
           CategoryId: +categoryId,
+          isBanner: isBanner === true,
+          bannerTime: isBanner === true ? new Date() : null,
           ArticleImage: {
             deleteMany: {},
             create: articleImageUrl.map((url) => ({
@@ -374,7 +545,12 @@ articleRouter.get('/article/:articleId', authMiddleware, async (req, res, next) 
             tag: true
           }
         },
-        ArticleImage: true
+        ArticleImage: true,
+        category: {
+          select: {
+            categoryName: true,
+          }
+        }
       }
     });
 
@@ -390,11 +566,8 @@ articleRouter.get('/article/:articleId', authMiddleware, async (req, res, next) 
 
 articleRouter.patch('/article/:articleId/important', authMiddleware, async (req, res, next) => {
   try {
-    const userId = req.user;
     const { articleId } = req.params;
     const { isImportant } = req.body;
-    const findUser = await prisma.admin.findUnique({ where: { adminId: userId } });
-    if (!findUser) return res.status(401).json({ message: "존재하지 않는 유저입니다." });
 
     const findArticle = await prisma.article.findFirst({ where: { articleId: +articleId } });
     if (!findArticle) return res.status(400).json({ message: "존재하지 않는 기사입니다." });
@@ -412,105 +585,80 @@ articleRouter.patch('/article/:articleId/important', authMiddleware, async (req,
   }
 });
 
-articleRouter.get('/search/article', authMiddleware, async (req, res, next) => {
+articleRouter.patch('/article/:articleId/banner', authMiddleware, async (req, res, next) => {
   try {
-    const { categoryId, searchQuery } = req.query;
-    const page = +req.query.page || 1;
-    const limit = +req.query.limit || 15;
-    const offset = (page - 1) * limit;
+    const { articleId } = req.params;
+    const { isBanner } = req.body;
 
-    if (searchQuery.trim() === "") return res.status(401).json({ message: "검색어는 한 글자 이상 작성해주세요." });
+    const findArticle = await prisma.article.findFirst({ where: { articleId: +articleId } });
+    if (!findArticle) return res.status(400).json({ message: "존재하지 않는 기사입니다." });
 
-    let total;
-    let findArticles;
-
-    if (categoryId === "none") {
-      findArticles = await prisma.article.findMany({
-        where: {
-          articleTitle: {
-            contains: searchQuery
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        select: {
-          articleId: true,
-          articleTitle: true,
-          isImportant: true,
-          createdAt: true,
-          category: {
-            select: {
-              categoryName: true
-            }
+    await prisma.$transaction(async (tx) => {
+      if (isBanner === true) {
+        const currentBannerArticles = await tx.article.findMany({
+          where: {
+            isBanner: true,
+            articleId: { not: +articleId }
           },
-          admin: {
-            select: {
-              name: true,
-              rank: true,
-            }
-          }
-        },
-        skip: offset,
-        take: limit
-      });
+          orderBy: { createdAt: 'asc' },
+          take: 3
+        });
 
-      total = await prisma.article.count({
-        where: {
-          articleTitle: {
-            contains: searchQuery
-          }
+        if (currentBannerArticles.length >= 3) {
+          const oldest = currentBannerArticles[0];
+          await tx.article.update({
+            where: { articleId: +oldest.articleId },
+            data: { isBanner: false }
+          })
         }
-      })
-    } else {
-      findArticles = await prisma.article.findMany({
-        where: {
-          CategoryId: +categoryId,
-          articleTitle: {
-            contains: searchQuery
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        select: {
-          articleId: true,
-          articleTitle: true,
-          isImportant: true,
-          createdAt: true,
-          category: {
-            select: {
-              categoryName: true
-            }
-          },
-          admin: {
-            select: {
-              name: true,
-              rank: true,
-            }
-          }
-        },
-        skip: offset,
-        take: limit
+      }
+
+      await tx.article.update({
+        where: { articleId: +articleId },
+        data: { isBanner }
       });
+    });
 
-      total = await prisma.article.count({
-        where: {
-          CategoryId: +categoryId,
-          articleTitle: {
-            contains: searchQuery
-          }
-        }
-      })
-    }
-
-    return res.status(201).json({
-      filteredArticles: findArticles, total, page,
-      totalPage: Math.ceil(total / limit)
-    })
+    return res.sendStatus(200);
   } catch (e) {
     next(e);
   }
 })
+
+articleRouter.delete('/article/delete/:articleId', authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user;
+    const { articleId } = req.params;
+    const { prevImageUrls } = req.body;
+
+    const findArticle = await prisma.article.findFirst({
+      where: { articleId: +articleId }
+    });
+
+    const findUser = await prisma.admin.findUnique({
+      where: { adminId: userId }
+    });
+
+    if (findUser.rank !== '편집장') {
+      if (findArticle.AdminId !== userId) {
+        return res.status(403).json({ message: "삭제할 수 있는 권한이 없습니다." });
+      }
+    }
+
+    if (prevImageUrls) {
+      await deleteImage(isArray(prevImageUrls));
+    };
+
+    await prisma.article.delete({
+      where: { articleId: findArticle.articleId }
+    });
+
+    return res.status(200).json({ message: "삭제 되었습니다." });
+  } catch (e) {
+    next(e);
+  }
+})
+
+
 
 export default articleRouter;

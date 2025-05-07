@@ -1,6 +1,6 @@
 const validationMessage = {
-  articleTitle: '제목은 8글자 이상 50글자 이하로 해주세요.',
-  articleSubTitle: '소제목은 8글자 이상 50글자 이하로 해주세요.',
+  articleTitle: '제목은 8글자 이상 100글자 이하로 해주세요.',
+  articleSubTitle: '소제목은 8글자 이상 100글자 이하로 해주세요.',
   articleContent: '본문은 필수 항목입니다.',
   tagName: '태그는 필수 항목입니다.',
   categoryId: '카테고리를 선택해주세요.'

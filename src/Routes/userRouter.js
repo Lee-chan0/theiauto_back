@@ -112,46 +112,6 @@ userRouter.get('/adminInfo', authMiddleware, async (req, res, next) => {
   }
 });
 
-userRouter.patch('/adminInfo/:adminId', authMiddleware, upload.single('file'), async (req, res, next) => {
-  try {
-    const userId = req.user;
-    const { adminId } = req.params;
-    const { name, email, userImage } = req.body;
-    const userFile = req.file;
-
-    const CDN_URL = 'https://pnkokogkwsgf27818223.gcdn.ntruss.com';
-
-    let profileImage;
-    if (userFile) {
-      try {
-        profileImage = await userProfileImageUpload(userFile, CDN_URL);
-      } catch (e) {
-        return res.status(500).json({ message: "이미지 업로드 중 문제가 발생하였습니다." });
-      }
-    }
-
-    if (userId !== adminId) return res.status(403).json({ message: "잘못된 접근입니다." });
-
-    const findUser = await prisma.admin.findUnique({ where: { adminId: adminId } });
-    if (!findUser) return res.status(403).json({ message: "존재하지 않는 유저입니다." });
-
-    await prisma.admin.update({
-      where: {
-        adminId: adminId,
-      },
-      data: {
-        name,
-        email,
-        profileImg: profileImage ? profileImage : userImage ? userImage : null
-      }
-    })
-
-    return res.status(201).json({ message: "정보 수정이 완료되었습니다." });
-  } catch (e) {
-    next(e);
-  }
-});
-
 userRouter.post('/refresh-token', async (req, res, next) => {
   try {
     const tokenFromCookie = req.cookies.refreshToken;
@@ -169,6 +129,38 @@ userRouter.post('/refresh-token', async (req, res, next) => {
   } catch (e) {
     return res.status(401).json({ message: "잘못된 접근입니다. 다시 로그인 해주세요." });
   }
-})
+});
+
+userRouter.patch('/adminInfo', authMiddleware, upload.single('file'), async (req, res, next) => {
+  try {
+    const userId = req.user;
+    const { userImage } = req.body;
+    const userFile = req.file;
+
+    const CDN_URL = 'https://pnkokogkwsgf27818223.gcdn.ntruss.com';
+
+    let profileImage;
+    if (userFile) {
+      try {
+        profileImage = await userProfileImageUpload(userFile, CDN_URL);
+      } catch (e) {
+        return res.status(500).json({ message: "이미지 업로드 중 문제가 발생하였습니다." });
+      }
+    }
+
+    await prisma.admin.update({
+      where: {
+        adminId: userId,
+      },
+      data: {
+        profileImg: profileImage ? profileImage : userImage ? userImage : null
+      }
+    })
+
+    return res.status(201).json({ message: "정보 수정이 완료되었습니다." });
+  } catch (e) {
+    next(e);
+  }
+});
 
 export default userRouter;

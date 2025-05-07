@@ -29,17 +29,21 @@ model Admin {
 }
 
 model Article {
-  articleId       Int      @id @default(autoincrement()) @map("articleId")
-  articleBanner   String   @map("articleBanner")
-  articleTitle    String   @map("articleTitle") @db.Text
-  articleSubTitle String   @map("articleSubTitle") @db.Text
-  articleContent  String   @map("articleContent") @db.MediumText
-  isImportant     Boolean  @default(false) @map("isImportant")
-  views           Int      @default(0) @map("views")
-  createdAt       DateTime @default(now()) @map("createdAt")
-  updatedAt       DateTime @updatedAt @map("updatedAt")
-  AdminId         String   @map("AdminId")
-  CategoryId      Int      @map("CategoryId")
+  articleId       Int       @id @default(autoincrement()) @map("articleId")
+  articleBanner   String    @map("articleBanner")
+  articleTitle    String    @map("articleTitle") @db.Text
+  articleSubTitle String    @map("articleSubTitle") @db.Text
+  articleContent  String    @map("articleContent") @db.MediumText
+  articleStatus   String    @default("publish") @map("articleStatus")
+  publishedAt     DateTime? @map("publishedAt")
+  isImportant     Boolean   @default(false) @map("isImportant")
+  isBanner        Boolean   @default(false) @map("isBanner")
+  bannerTime      DateTime? @map("bannerTime")
+  views           Int       @default(0) @map("views")
+  createdAt       DateTime  @default(now()) @map("createdAt")
+  updatedAt       DateTime  @updatedAt @map("updatedAt")
+  AdminId         String    @map("AdminId")
+  CategoryId      Int       @map("CategoryId")
 
   admin        Admin          @relation(fields: [AdminId], references: [adminId])
   category     Category       @relation(fields: [CategoryId], references: [categoryId])
@@ -66,7 +70,7 @@ model ArticleImage {
   createdAt       DateTime @default(now()) @map("createdAt")
   updatedAt       DateTime @updatedAt @map("updatedAt")
 
-  article Article @relation(fields: [ArticleId], references: [articleId])
+  article Article @relation(fields: [ArticleId], references: [articleId], onDelete: Cascade)
 
   @@map("ArticleImage")
 }
@@ -85,7 +89,7 @@ model ArticleTag {
   ArticleId Int @map("articleId")
   TagId     Int @map("tagId")
 
-  article Article @relation(fields: [ArticleId], references: [articleId])
+  article Article @relation(fields: [ArticleId], references: [articleId], onDelete: Cascade)
   tag     Tag     @relation(fields: [TagId], references: [tagId])
 
   @@id([ArticleId, TagId])

@@ -8,8 +8,10 @@ export const deleteImage = async (delImgs) => {
     if (!url.startsWith(CDN_URL)) return;
 
     const key = url.replace(`${CDN_URL}/`, '');
+    const allowPath = ['articleContent/', 'articleImages/', 'bannerImage/'];
 
-    if (!key.startsWith('articleContent/')) {
+    const isAllowed = allowPath.some((path) => key.startsWith(path));
+    if (!isAllowed) {
       console.warn('허용되지 않은 경로입니다.');
       return;
     }
