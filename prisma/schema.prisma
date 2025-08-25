@@ -96,6 +96,21 @@ model ArticleTag {
   @@map("ArticleTag")
 }
 
+model Advertisement {
+  advertisementId       Int      @id @default(autoincrement()) @map("advertisementId")
+  advertisementTitle    String   @map("advertisementTitle")
+  advertisementImageUrl String   @map("advertisementImage")
+  redirectUrl           String?  @map("redirectUrl")
+  isActive              Boolean  @default(true) @map("isActive")
+  clickCount            Int      @default(0) @map("clickCount")
+  adMemo                String?  @map("adMemo") @db.Text
+  adLocation            String   @map("adLocation")
+  createdAt             DateTime @default(now()) @map("createdAt")
+  updatedAt             DateTime @updatedAt @map("updatedAt")
+
+  @@map("Advertisement")
+}
+
 model Category {
   categoryId       Int    @id @default(autoincrement()) @map("categoryId")
   categoryName     String @map("categoryName")
@@ -105,9 +120,21 @@ model Category {
   subCategories  Category[] @relation("CategoryToCategory")
 
   createdAt DateTime @default(now()) @map("createdAt")
-  updatedAt DateTime @default(now()) @updatedAt @map("updatedAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
 
   Article Article[]
 
   @@map("Category")
+}
+
+model SubscribeUserInfo {
+  subscribeUserInfoId String  @id @default(uuid()) @map("subscribeUserInfoId")
+  subscribeUserName   String  @map("subscribeUserName")
+  subscribeUserEmail  String  @unique @map("subscribeUserEmail")
+  subscribeType       String? @map("subscribeType")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@map("SubscribeUserInfo")
 }

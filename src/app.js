@@ -9,6 +9,8 @@ import cookieParser from 'cookie-parser';
 import { startPublishScheduler } from './utils/ScheduledArticle/startPublishScheduler.js';
 import articleUserRouter from './Routes/articleUserRouter.js';
 import categoryUserRouter from './Routes/categoryUserRouter.js';
+import advertisementRouter from './Routes/advertisementRouter.js';
+import advertisementUserRouter from './Routes/advertisementUserRouter.js';
 
 dotenv.config();
 
@@ -23,8 +25,8 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use('/theiauto/server/api/general', [articleUserRouter, categoryUserRouter]);
-app.use('/theiauto/server/api', [userRouter, categoryRouter, articleRouter]);
+app.use('/theiauto/server/api/general', [articleUserRouter, categoryUserRouter, advertisementUserRouter]);
+app.use('/theiauto/server/api', [userRouter, categoryRouter, articleRouter, advertisementRouter]);
 app.use(globalErrorHandler);
 
 app.get('/', (req, res) => {

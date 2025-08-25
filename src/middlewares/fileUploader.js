@@ -11,7 +11,7 @@ const s3 = new S3Client({
   credentials: {
     accessKeyId: process.env.NAVER_CLOUD_ACCESS_KEY,
     secretAccessKey: process.env.NAVER_CLOUD_SECRET_ACCESS_KEY
-  }
+  },
 });
 
 const upload = multer({

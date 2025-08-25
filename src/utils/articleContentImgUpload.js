@@ -1,27 +1,30 @@
-import { Upload } from '@aws-sdk/lib-storage';
-import { v4 as uuidv4 } from 'uuid';
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3 } from '../middlewares/fileUploader.js';
 import path from 'path';
-
+import { v4 as uuidv4 } from 'uuid';
+import { addWatermarkToImage } from './addWatermarkToImage.js';
 
 export async function articleContentImgUpload(contentFile, CDN_URL) {
-  const contentFileExt = path.extname(contentFile.originalname).toLowerCase();
-  const contentFileKey = `articleContent/${Date.now()}_${uuidv4()}${contentFileExt}`;
+  try {
+    const contentFileExt = path.extname(contentFile.originalname).toLowerCase();
+    const contentFileKey = `articleContent/${Date.now()}_${uuidv4()}${contentFileExt}`;
 
-  const contentImgParams = {
-    Bucket: 'my-bucket-ncp',
-    Key: contentFileKey,
-    Body: contentFile.buffer,
-    ACL: "public-read",
-    ContentType: contentFile.mimetype
-  };
+    const watermarkedBuffer = await addWatermarkToImage(contentFile.buffer);
 
-  const upload = new Upload({
-    client: s3,
-    params: contentImgParams
-  });
+    const contentImgParams = {
+      Bucket: 'my-bucket-ncp',
+      Key: contentFileKey,
+      Body: watermarkedBuffer,
+      ACL: "public-read",
+      ContentType: contentFile.mimetype
+    };
 
-  await upload.done();
+    const command = new PutObjectCommand(contentImgParams);
+    await s3.send(command);
 
-  return `${CDN_URL}/${contentFileKey}`;
+    return `${CDN_URL}/${contentFileKey}`;
+  } catch (e) {
+    console.error('실패 : ', e);
+    throw new Error('S3 업로드 실패: ' + (e?.message || 'unknown error'));
+  }
 }

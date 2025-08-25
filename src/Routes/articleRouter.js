@@ -171,6 +171,43 @@ articleRouter.get('/article/important', authMiddleware, async (req, res, next) =
   }
 })
 
+articleRouter.get('/article/banner', authMiddleware, async (req, res, next) => {
+  try {
+    const findBannerArticle = await prisma.article.findMany({
+      where: {
+        isBanner: true,
+        articleStatus: 'publish'
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        articleId: true,
+        articleTitle: true,
+        isImportant: true,
+        isBanner: true,
+        createdAt: true,
+        articleStatus: true,
+        category: {
+          select: {
+            categoryName: true
+          }
+        },
+        admin: {
+          select: {
+            name: true,
+            rank: true,
+          }
+        }
+      }
+    });
+
+    return res.status(201).json({
+      filteredArticles: findBannerArticle
+    })
+  } catch (e) {
+    next(e);
+  }
+})
+
 articleRouter.get('/article/category/:categoryId', authMiddleware, async (req, res, next) => {
   try {
     const { categoryId } = req.params;
@@ -258,30 +295,37 @@ articleRouter.get('/article/category/:categoryId', authMiddleware, async (req, r
   }
 });
 
-articleRouter.post('/article/content', upload.single("file"), authMiddleware, async (req, res, next) => {
+articleRouter.post('/article/content', upload.single('file'), authMiddleware, async (req, res, next) => {
   try {
     const contentFile = req.file;
     const userId = req.user;
 
-    let contentByImage;
+    if (!contentFile) {
+      return res.status(400).json({ message: '파일이 업로드되지 않았습니다.' });
+    }
 
+    let contentByImage;
     try {
       contentByImage = await articleContentImgUpload(contentFile, CDN_URL);
     } catch (e) {
-      console.error(e);
-      res.status(500).json({ message: "이미지 업로드 중 문제가 발생했습니다." });
+      console.error('S3 Upload Error:', e);
+      return res.status(500).json({ message: '이미지 업로드 중 문제가 발생했습니다.', error: e.message });
+    }
+
+    if (!contentByImage) {
+      return res.status(400).json({ message: '이미지 URL이 생성되지 않았습니다.' });
     }
 
     await prisma.articleContentTempStorage.create({
       data: {
         uploadedBy: userId,
-        imageUrls: contentByImage
-      }
+        imageUrls: contentByImage,
+      },
     });
 
     return res.status(200).json({ contentByImage });
   } catch (e) {
-    console.error(e);
+    console.error('Error:', e);
     next(e);
   }
 });

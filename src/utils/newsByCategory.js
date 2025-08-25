@@ -20,6 +20,11 @@ export const newsByCategory = async (category) => {
         articleTitle: true,
         articleBanner: true,
         createdAt: true,
+        category: {
+          select: {
+            categoryId: true,
+          }
+        }
       },
       take: 4
     });

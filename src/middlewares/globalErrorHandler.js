@@ -13,8 +13,7 @@ export const globalErrorHandler = (err, req, res, next) => {
 
   console.log('전역 에러 미들웨어');
   console.log(err.name);
-  console.log('에러메세지 : ', err.message);
-
+  console.log('에러메세지123 : ', err.message);
 
   if (err.name === 'ValidationError') {
     validationArray.forEach((item) => {
@@ -32,6 +31,11 @@ export const globalErrorHandler = (err, req, res, next) => {
       status: 'jwt expired',
       message: '세션이 만료되었습니다. 다시 로그인 해주세요.'
     })
+  } else if (
+    err instanceof Error &&
+    (err.message === '이미지 파일만 업로드 가능합니다.' || err.message.includes('이미지'))
+  ) {
+    return res.status(400).json({ message: '이미지 파일만 업로드 가능합니다.' });
   }
 
   res.status(err.status || 500).json({
