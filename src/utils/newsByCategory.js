@@ -1,6 +1,7 @@
 import prisma from "./prisma.js"
 
 export const newsByCategory = async (category) => {
+
   try {
     const articles = await prisma.article.findMany({
       where: {

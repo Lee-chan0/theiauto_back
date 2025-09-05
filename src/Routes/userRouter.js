@@ -112,6 +112,25 @@ userRouter.get('/adminInfo', authMiddleware, async (req, res, next) => {
   }
 });
 
+userRouter.get('/usersInfo', authMiddleware, async (req, res, next) => {
+  try {
+    const findUsers = await prisma.admin.findMany({
+      select: {
+        adminId: true,
+        name: true,
+        email: true,
+        rank: true,
+      }
+    });
+
+    if (!findUsers) return res.status(400).json({ message: "No Result" });
+
+    return res.status(201).json({ usersInfo: findUsers });
+  } catch (e) {
+    next(e);
+  }
+})
+
 userRouter.post('/refresh-token', async (req, res, next) => {
   try {
     const tokenFromCookie = req.cookies.refreshToken;

@@ -104,7 +104,7 @@ articleUserRouter.get('/article/banner', async (req, res, next) => {
         articleStatus: 'publish',
         category: {
           categoryName: {
-            in: ['모터스포츠[국내]', '모터스포츠[해외]']
+            in: ['모터스포츠']
           }
         }
       },
@@ -208,7 +208,7 @@ articleUserRouter.get('/article/motorsports', async (req, res, next) => {
         articleStatus: 'publish',
         category: {
           categoryName: {
-            in: ['모터스포츠[국내]']
+            in: ['모터스포츠']
           }
         }
       },
@@ -231,38 +231,8 @@ articleUserRouter.get('/article/motorsports', async (req, res, next) => {
       take: 4
     });
 
-    const overseasArticles = await prisma.article.findMany({
-      where: {
-        articleStatus: 'publish',
-        category: {
-          categoryName: {
-            in: ['모터스포츠[해외]']
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      select: {
-        articleId: true,
-        articleBanner: true,
-        articleTitle: true,
-        articleSubTitle: true,
-        createdAt: true,
-        category: {
-          select: {
-            categoryId: true,
-            categoryName: true
-          }
-        }
-      },
-      take: 4
-    });
+    const resultArticles = motorSportArticles;
 
-    const resultArticles = motorSportArticles.concat(overseasArticles);
-
-    console.log(overseasArticles.length);
-    console.log(motorSportArticles.length);
     return res.status(200).json({ resultArticles });
   } catch (e) {
     next(e);
@@ -448,7 +418,7 @@ articleUserRouter.get('/article/service', async (req, res, next) => {
       where: {
         articleStatus: 'publish',
         category: {
-          categoryName: '부품 & 서비스'
+          categoryName: '업체소개'
         }
       },
       orderBy: {
@@ -478,7 +448,32 @@ articleUserRouter.get('/article/brand', async (req, res, next) => {
   try {
     const ITArticles = await newsByCategory('IT');
 
-    const brandArticles = await newsByCategory('라이프 & 브랜드');
+    const brandArticles = await prisma.article.findMany({
+      where: {
+        articleStatus: 'publish',
+        category: {
+          parentCategoryId: 3
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      select: {
+        articleId: true,
+        articleBanner: true,
+        articleContent: true,
+        articleTitle: true,
+        articleSubTitle: true,
+        createdAt: true,
+        category: {
+          select: {
+            categoryId: true,
+            categoryName: true,
+          }
+        }
+      },
+      take: 4
+    });
 
     return res.status(200).json({ ITArticles, brandArticles });
   } catch (e) {

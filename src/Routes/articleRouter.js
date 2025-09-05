@@ -216,7 +216,7 @@ articleRouter.get('/article/category/:categoryId', authMiddleware, async (req, r
 
     const offset = (page - 1) * limit;
 
-    if (categoryId !== "none" || categoryId === undefined) {
+    if (categoryId && categoryId !== "none") {
       const filteredArticles = await prisma.article.findMany({
         where: {
           CategoryId: +categoryId,
@@ -340,7 +340,7 @@ articleRouter.post('/article', upload.fields([
     if (error) return next(error);
 
     let { articleTitle, articleSubTitle, isBanner,
-      articleContent, categoryId, tagName } = value;
+      articleContent, categoryId, tagName, adminId } = value;
     let { needfulDelUrl, articleStatus, publishTime } = req.body;
     const userId = req.user;
 
@@ -415,7 +415,7 @@ articleRouter.post('/article', upload.fields([
           publishedAt: isScheduled ? new Date(publishTime) : new Date(),
           isBanner: isBanner === true,
           bannerTime: isBanner === true ? new Date() : null,
-          AdminId: userId,
+          AdminId: adminId,
           CategoryId: +categoryId,
           ArticleImage: {
             create: uploadImageUrls.map((url) => ({ articleImageUrl: url }))
@@ -455,25 +455,16 @@ articleRouter.patch('/article/:articleId', upload.fields([
     if (error) return next(error);
 
     const { articleId } = req.params;
-    const userId = req.user;
 
     const findArticle = await prisma.article.findUnique({
       where: { articleId: +articleId }
     });
 
-    const findUser = await prisma.admin.findUnique({ where: { adminId: userId } });
-
     if (!findArticle) { return res.status(400).json({ message: "존재하지 않는 기사입니다." }) }
-
-    if (findUser.rank !== '편집장') {
-      if (findArticle.AdminId !== userId) {
-        return res.status(403).json({ message: "수정할 수 있는 권한이 없습니다." });
-      };
-    }
 
     let { articleTitle, articleSubTitle,
       articleContent, categoryId, isBanner,
-      tagName } = value;
+      tagName, adminId } = value;
     let { articleBanner, articleImageUrl } = req.body;
 
     isBanner = isBanner === "true";
@@ -542,6 +533,7 @@ articleRouter.patch('/article/:articleId', upload.fields([
           articleContent,
           articleBanner: bannerImageUrl,
           CategoryId: +categoryId,
+          AdminId: adminId,          // ✅ 추가 (UUID 문자열 그대로)
           isBanner: isBanner === true,
           bannerTime: isBanner === true ? new Date() : null,
           ArticleImage: {
@@ -576,6 +568,8 @@ articleRouter.patch('/article/:articleId', upload.fields([
     next(e);
   }
 });
+
+
 
 articleRouter.get('/article/:articleId', authMiddleware, async (req, res, next) => {
   try {
@@ -671,23 +665,12 @@ articleRouter.patch('/article/:articleId/banner', authMiddleware, async (req, re
 
 articleRouter.delete('/article/delete/:articleId', authMiddleware, async (req, res, next) => {
   try {
-    const userId = req.user;
     const { articleId } = req.params;
     const { prevImageUrls } = req.body;
 
     const findArticle = await prisma.article.findFirst({
       where: { articleId: +articleId }
     });
-
-    const findUser = await prisma.admin.findUnique({
-      where: { adminId: userId }
-    });
-
-    if (findUser.rank !== '편집장') {
-      if (findArticle.AdminId !== userId) {
-        return res.status(403).json({ message: "삭제할 수 있는 권한이 없습니다." });
-      }
-    }
 
     if (prevImageUrls) {
       await deleteImage(isArray(prevImageUrls));
