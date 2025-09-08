@@ -493,8 +493,10 @@ articleUserRouter.get('/article/category/:categoryId', async (req, res, next) =>
         articleBanner: true,
         articleTitle: true,
         articleSubTitle: true,
+        articleContent: true,
         category: {
           select: {
+            categoryId: true,
             categoryName: true
           }
         },
@@ -529,8 +531,15 @@ articleUserRouter.get('/articles/category/:categoryId', async (req, res, next) =
         articleId: true,
         articleBanner: true,
         articleTitle: true,
+        articleSubTitle: true,
         articleContent: true,
         createdAt: true,
+        category: {
+          select: {
+            categoryId: true,
+            categoryName: true
+          }
+        },
         ArticleTag: {
           select: {
             tag: true
@@ -700,8 +709,15 @@ articleUserRouter.get('/search', async (req, res, next) => {
         articleId: true,
         articleBanner: true,
         articleTitle: true,
+        articleSubTitle: true,
         articleContent: true,
         createdAt: true,
+        category: {
+          select: {
+            categoryId: true,
+            categoryName: true,
+          }
+        },
         ArticleTag: {
           select: {
             tag: true
