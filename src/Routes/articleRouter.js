@@ -9,6 +9,7 @@ import { bannerImageUpload } from '../utils/bannerImageUpload.js';
 import { articleImageUpload } from '../utils/articleImageUpload.js';
 import { articleContentImgUpload } from '../utils/articleContentImgUpload.js';
 import { tagFiltering } from '../utils/tagFiltering.js';
+import { deleteByUuid, deleteByContentId } from '../services/daumFeedService.js';
 
 const articleRouter = express.Router();
 
@@ -671,21 +672,36 @@ articleRouter.delete('/article/delete/:articleId', authMiddleware, async (req, r
     const findArticle = await prisma.article.findFirst({
       where: { articleId: +articleId }
     });
+    if (!findArticle) return res.status(404).json({ message: 'Not found' });
 
     if (prevImageUrls) {
       await deleteImage(isArray(prevImageUrls));
-    };
+    }
 
     await prisma.article.delete({
       where: { articleId: findArticle.articleId }
     });
 
-    return res.status(200).json({ message: "삭제 되었습니다." });
+    res.status(200).json({ message: "삭제 되었습니다." });
+
+    (async () => {
+      try {
+        const env = 'prod';
+        if (findArticle.daumUuid) {
+          await deleteByUuid(env, findArticle.daumUuid);
+        } else {
+          const contentId = findArticle.daumContentId || `theiauto-${findArticle.articleId}`;
+          await deleteByContentId(env, contentId);
+        }
+      } catch (e) {
+        console.error('[Daum delete failed]', articleId, e.message);
+      }
+    })();
+
   } catch (e) {
     next(e);
   }
-})
-
+});
 
 
 export default articleRouter;

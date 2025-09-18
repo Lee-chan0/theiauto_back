@@ -63,6 +63,7 @@ model Article {
   category     Category       @relation(fields: [CategoryId], references: [categoryId])
   ArticleTag   ArticleTag[]
   ArticleImage ArticleImage[]
+  DaumFeedLog  DaumFeedLog[]
 
   @@map("Article")
 }
@@ -163,4 +164,24 @@ model PastUsers {
   pastUserJoinDate DateTime @map("pastUserJoinDate")
 
   @@map("PastUsers")
+}
+
+model DaumFeedLog {
+  id           Int      @id @default(autoincrement()) @map("id")
+  ArticleId    Int?     @map("ArticleId")
+  contentId    String?  @map("contentId") @db.VarChar(500)
+  uuid         String?  @map("uuid") @db.VarChar(64)
+  action       String   @map("action")
+  status       String?  @map("status")
+  requestBody  String?  @map("requestBody") @db.MediumText
+  responseBody String?  @map("responseBody") @db.MediumText
+  errorMessage String?  @map("errorMessage") @db.Text
+  createdAt    DateTime @default(now()) @map("createdAt")
+
+  article Article? @relation(fields: [ArticleId], references: [articleId])
+
+  @@index([ArticleId])
+  @@index([contentId])
+  @@index([uuid])
+  @@map("DaumFeedLog")
 }
