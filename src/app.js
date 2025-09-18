@@ -26,6 +26,7 @@ app.set('trust proxy', 1);
 const ALLOWED_ORIGINS = new Set([
   'http://localhost:3000',
   "https://www.theiauto.com",
+  "https://theiauto.com",
   process.env.EXTRA_CORS_ORIGIN || '',
 ].filter(Boolean));
 
