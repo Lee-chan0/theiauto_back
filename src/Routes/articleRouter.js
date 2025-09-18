@@ -12,7 +12,7 @@ import { tagFiltering } from '../utils/tagFiltering.js';
 
 const articleRouter = express.Router();
 
-const CDN_URL = 'https://pnkokogkwsgf27818223.gcdn.ntruss.com';
+const CDN_URL = "https://theiauto.gcdn.ntruss.com";
 
 
 articleRouter.get('/search/article', authMiddleware, async (req, res, next) => {

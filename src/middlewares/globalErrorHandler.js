@@ -13,7 +13,7 @@ export const globalErrorHandler = (err, req, res, next) => {
 
   console.log('전역 에러 미들웨어');
   console.log(err.name);
-  console.log('에러메세지123 : ', err.message);
+  console.log('Error Message : ', err.message);
 
   if (err.name === 'ValidationError') {
     validationArray.forEach((item) => {

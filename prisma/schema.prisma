@@ -12,6 +12,14 @@ enum AdminRank {
   기자
 }
 
+enum DaumFeedStatus {
+  READY
+  PROCESSING
+  SUCCESS
+  ERROR
+  FAIL
+}
+
 model Admin {
   adminId    String    @id @default(uuid()) @map("userId")
   name       String    @map("name")
@@ -44,6 +52,12 @@ model Article {
   updatedAt       DateTime  @updatedAt @map("updatedAt")
   AdminId         String    @map("AdminId")
   CategoryId      Int       @map("CategoryId")
+
+  daumContentId    String?         @unique(map: "Article_daumContentId_unique") @map("daumContentId") @db.VarChar(500)
+  daumUuid         String?         @map("daumUuid") @db.VarChar(64)
+  daumStatus       DaumFeedStatus? @map("daumStatus")
+  daumPreviewPath  String?         @map("daumPreviewPath") @db.VarChar(255)
+  daumLastPushedAt DateTime?       @map("daumLastPushedAt")
 
   admin        Admin          @relation(fields: [AdminId], references: [adminId])
   category     Category       @relation(fields: [CategoryId], references: [categoryId])
@@ -137,4 +151,16 @@ model SubscribeUserInfo {
   updatedAt DateTime @updatedAt @map("updatedAt")
 
   @@map("SubscribeUserInfo")
+}
+
+model PastUsers {
+  pastUserId       String   @id @default(uuid()) @map("pastUserId")
+  pastUserName     String   @map("pastUserName")
+  pastUserLoginId  String   @map("pastUserLoginId")
+  pastUserPhoneNum String   @map("pastUserPhoneNum")
+  pastUserAddress  String   @map("pastUserAddress") @db.Text
+  pastUserEmail    String   @map("pastUserEmail")
+  pastUserJoinDate DateTime @map("pastUserJoinDate")
+
+  @@map("PastUsers")
 }

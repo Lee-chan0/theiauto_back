@@ -11,6 +11,7 @@ import articleUserRouter from './Routes/articleUserRouter.js';
 import categoryUserRouter from './Routes/categoryUserRouter.js';
 import advertisementRouter from './Routes/advertisementRouter.js';
 import advertisementUserRouter from './Routes/advertisementUserRouter.js';
+import daumRouter from './Routes/daum.js';
 
 dotenv.config();
 
@@ -20,18 +21,15 @@ const PORT = process.env.PORT;
 
 
 app.use(cors({
-  origin: 'https://theiauto-front.vercel.app',
-  credentials: true
+  origin: ['http://localhost:3000', 'https://theiauto-front.vercel.app'],
+  credentials: true,
 }));
-// app.use(cors({
-//   origin: 'http://localhost:3000',
-//   credentials: true
-// }));
 app.use(cookieParser());
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use('/theiauto/server/api/general', [articleUserRouter, categoryUserRouter, advertisementUserRouter]);
 app.use('/theiauto/server/api', [userRouter, categoryRouter, articleRouter, advertisementRouter]);
+app.use('/integrations/daum', daumRouter);
 app.use(globalErrorHandler);
 
 app.get('/', (req, res) => {

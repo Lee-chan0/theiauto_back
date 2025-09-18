@@ -3,6 +3,9 @@ import { s3 } from '../middlewares/fileUploader.js';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { addWatermarkToImage } from './addWatermarkToImage.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export async function articleContentImgUpload(contentFile, CDN_URL) {
   try {
@@ -12,7 +15,7 @@ export async function articleContentImgUpload(contentFile, CDN_URL) {
     const watermarkedBuffer = await addWatermarkToImage(contentFile.buffer);
 
     const contentImgParams = {
-      Bucket: 'my-bucket-ncp',
+      Bucket: process.env.NCP_BUCKET,
       Key: contentFileKey,
       Body: watermarkedBuffer,
       ACL: "public-read",

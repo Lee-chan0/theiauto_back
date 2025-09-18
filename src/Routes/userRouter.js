@@ -15,7 +15,10 @@ const userRouter = express.Router();
 
 userRouter.post('/signup', async (req, res, next) => {
   try {
+
     const { value, error } = adminSchema.validate(req.body);
+
+
     if (error) return res.status(400).json({ message: error.details[0].message });
 
     const { loginId, password, email, rank, name } = value;
@@ -42,7 +45,6 @@ userRouter.post('/signup', async (req, res, next) => {
         rank
       }
     });
-
     return res.status(201).json({ message: "회원가입이 완료 되었습니다." });
   } catch (e) {
     next(e);
@@ -156,7 +158,7 @@ userRouter.patch('/adminInfo', authMiddleware, upload.single('file'), async (req
     const { userImage } = req.body;
     const userFile = req.file;
 
-    const CDN_URL = 'https://pnkokogkwsgf27818223.gcdn.ntruss.com';
+    const CDN_URL = "https://theiauto.gcdn.ntruss.com";
 
     let profileImage;
     if (userFile) {

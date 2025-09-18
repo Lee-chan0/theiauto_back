@@ -1,8 +1,11 @@
 import { s3 } from "../middlewares/fileUploader.js"
 import { DeleteObjectCommand } from "@aws-sdk/client-s3"
+import dotenv from 'dotenv'
+
+dotenv.config();
 
 export const deleteImage = async (delImgs) => {
-  const CDN_URL = 'https://pnkokogkwsgf27818223.gcdn.ntruss.com';
+  const CDN_URL = "https://theiauto.gcdn.ntruss.com";
 
   const deletePromises = delImgs.map(async (url) => {
     if (!url.startsWith(CDN_URL)) return;
@@ -17,7 +20,7 @@ export const deleteImage = async (delImgs) => {
     }
 
     const deleteParmas = {
-      Bucket: 'my-bucket-ncp',
+      Bucket: process.env.NCP_BUCKET,
       Key: key
     };
 

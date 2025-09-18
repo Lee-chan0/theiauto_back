@@ -3,6 +3,9 @@ import { s3 } from '../middlewares/fileUploader.js';
 import path from 'path';
 import { addWatermarkToImage } from './addWatermarkToImage.js';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export async function bannerImageUpload(bannerFile, CDN_URL) {
   const bannerFileExt = path.extname(bannerFile.originalname).toLowerCase();
@@ -11,7 +14,7 @@ export async function bannerImageUpload(bannerFile, CDN_URL) {
   const watermarkedBuffer = await addWatermarkToImage(bannerFile.buffer);
 
   const bannerParams = {
-    Bucket: 'my-bucket-ncp',
+    Bucket: process.env.NCP_BUCKET,
     Key: bannerFileKey,
     Body: watermarkedBuffer,
     ACL: "public-read",

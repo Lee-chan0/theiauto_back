@@ -5,6 +5,11 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../utils/prisma.js';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+
 
 const advertisementRouter = express.Router();
 
@@ -22,14 +27,14 @@ advertisementRouter.post('/advertisement', upload.single("file"), authMiddleware
       return res.status(400).json({ message: "필수 항목을 작성해주세요." });
     }
 
-    const CDN_URL = 'https://pnkokogkwsgf27818223.gcdn.ntruss.com';
+    const CDN_URL = "https://theiauto.gcdn.ntruss.com";
 
     try {
       const adFileExt = path.extname(advertisementImageUrl.originalname).toLowerCase();
       const adFileKey = `advertisement/${Date.now()}_${uuidv4()}${adFileExt}`;
 
       const adImageParams = {
-        Bucket: 'my-bucket-ncp',
+        Bucket: process.env.NCP_BUCKET,
         Key: adFileKey,
         Body: advertisementImageUrl.buffer,
         ACL: 'public-read',
@@ -84,7 +89,7 @@ advertisementRouter.patch('/advertisement/:advertisementId', upload.single('file
       return res.status(400).json({ message: "필수 항목을 작성해주세요." });
     }
 
-    const CDN_URL = 'https://pnkokogkwsgf27818223.gcdn.ntruss.com';
+    const CDN_URL = "https://theiauto.gcdn.ntruss.com";
 
     if (!currentUrl && advertisementImageUrl) {
       try {
@@ -92,7 +97,7 @@ advertisementRouter.patch('/advertisement/:advertisementId', upload.single('file
         const adFileKey = `advertisement/${Date.now()}_${uuidv4()}${adFileExt}`;
 
         const adImageParams = {
-          Bucket: 'my-bucket-ncp',
+          Bucket: process.env.NCP_BUCKET,
           Key: adFileKey,
           Body: advertisementImageUrl.buffer,
           ACL: 'public-read',
