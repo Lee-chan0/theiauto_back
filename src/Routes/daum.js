@@ -37,30 +37,32 @@ daumRouter.get('/check', async (req, res) => {
   res.status(result.status).json(result);
 });
 
-// 2) JSON 송고 (파일 없이)
 daumRouter.post('/articles/:id/push', async (req, res) => {
   try {
     const env = (req.query.env || 'prod').toLowerCase();
     const articleId = Number(req.params.id);
-    if (!Number.isInteger(articleId)) {
-      return res.status(400).json({ ok: false, message: 'invalid articleId' });
-    }
-    const result = await pushArticleJson(env, articleId);
+    const enableComment =
+      req.query.enableComment === 'true' ? true :
+        req.query.enableComment === 'false' ? false : undefined;
+
+    const result = await pushArticleJson(env, articleId, { enableComment });
     res.status(result.status).json(result);
   } catch (e) {
     res.status(500).json({ ok: false, message: e.message });
   }
 });
 
-// 3) 파일 포함 송고 (multipart/form-data)
 daumRouter.post('/articles/:id/push-file', upload.array('files'), async (req, res) => {
   try {
     const env = (req.query.env || 'prod').toLowerCase();
     const articleId = Number(req.params.id);
-    if (!Number.isInteger(articleId)) {
-      return res.status(400).json({ ok: false, message: 'invalid articleId' });
-    }
-    const result = await pushArticleWithFiles(env, articleId, req.files || []);
+    if (!Number.isInteger(articleId)) return res.status(400).json({ ok: false, message: 'invalid articleId' });
+
+    const c = (req.query.comment || '').toString().toLowerCase();
+    const enableComment = c === 'on' ? true : c === 'off' ? false : undefined;
+    const dryRun = (req.query.dryRun === 'true');
+
+    const result = await pushArticleWithFiles(env, articleId, req.files || [], { enableComment, dryRun });
     res.status(result.status).json(result);
   } catch (e) {
     res.status(500).json({ ok: false, message: e.message });

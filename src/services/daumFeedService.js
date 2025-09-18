@@ -7,7 +7,21 @@ import FormData from 'form-data';
 
 const prisma = new PrismaClient();
 
+
 /* ============================== 공통 유틸 ============================== */
+
+
+function logDaumSuccess(action, { articleId, contentId, uuid, status }) {
+  console.log(
+    `다음 기사 송고 SUCCESS | action=${action} articleId=${articleId} contentId=${contentId || ''} uuid=${uuid || ''} status=${status || ''}`
+  );
+}
+function logDaumFailed(action, { articleId, contentId, uuid, status }, err) {
+  const msg = err?.response?.data?.errorMessage || err?.message || 'Unknown error';
+  console.error(
+    `다음 기사 송고 FAILED | action=${action} articleId=${articleId} contentId=${contentId || ''} uuid=${uuid || ''} status=${status || ''} error=${msg}`
+  );
+}
 
 function toIsoOffsetKst(date) {
   // 예: 2024-11-27T14:00:00.000+09:00
@@ -33,10 +47,14 @@ function isPushDisabled() {
 }
 
 function isDryRun(qOrOpt) {
-  // 라우터에서 req.query를 그대로 3번째 인자로 넘기면 됨
+  // 라우터에서 req.query 또는 options를 받을 수 있음
   if (!qOrOpt) return process.env.DAUM_DRY_RUN === 'true';
+
+  // 문자열 'true'
   if (typeof qOrOpt === 'object' && qOrOpt !== null) {
     if (qOrOpt.dryRun === 'true') return true;
+    // boolean true 지원
+    if (qOrOpt.dryRun === true) return true;
   }
   return process.env.DAUM_DRY_RUN === 'true';
 }
@@ -44,7 +62,6 @@ function isDryRun(qOrOpt) {
 /** DaumFeedLog에 안전하게 적기(테이블 없거나 권한 없어도 에러 삼킴) */
 async function safeLogDaum(entry) {
   try {
-    // prisma client에 DaumFeedLog delegate는 존재(프리즈마 generate 기준)
     await prisma.daumFeedLog.create({
       data: {
         ArticleId: entry.articleId ?? null,
@@ -61,11 +78,47 @@ async function safeLogDaum(entry) {
       },
     });
   } catch (e) {
-    // 테이블 없음 등은 조용히 무시(콘솔만)
     if (process.env.NODE_ENV !== 'production') {
       console.warn('[DaumFeedLog skipped]', e.message);
     }
   }
+}
+
+/* ===== 배너 이미지를 본문 맨 앞 + 대표 이미지로 강제하는 유틸 ===== */
+
+function escapeHtml(s = '') {
+  return String(s).replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[m]));
+}
+
+function getFirstImgSrc(html = '') {
+  const re = /<img\b[^>]*\bsrc=(['"])(.*?)\1[^>]*>/i;
+  const m = re.exec(html);
+  return m ? m[2] : null;
+}
+
+// bannerUrl을 대표 이미지로 보장:
+// - 본문 첫 이미지가 배너가 아니면, 맨 앞에 배너 <img ... data-thumbnail="true">를 주입
+// - 첫 이미지가 이미 배너면, 굳이 중복 삽입하지 않음(첫 이미지가 대표로 사용됨)
+function ensureBannerAtTop(bodyHtml, bannerUrl, title) {
+  const safeBody = bodyHtml || '<p></p>';
+  if (!bannerUrl) return safeBody;
+
+  const first = getFirstImgSrc(safeBody);
+  const bannerTag = `<img src="${bannerUrl}" alt="${escapeHtml(title || '')}" data-thumbnail="true" />`;
+
+  if (!first) {
+    // 이미지가 아예 없는 경우 → 배너를 맨 앞에 삽입
+    return `<p>${bannerTag}</p>\n${safeBody}`;
+  }
+
+  // 첫 이미지가 이미 배너면 그대로 유지
+  if (first === bannerUrl) {
+    return safeBody;
+  }
+
+  return `<p>${bannerTag}</p>\n${safeBody}`;
 }
 
 /* ============================== 페이로드 빌더 ============================== */
@@ -80,31 +133,37 @@ function buildDaumPayload(article, options = {}) {
 
   const categories = article.category?.categoryName ? [article.category.categoryName] : [];
 
-  const writers = [];
-  const nameWithRank = article.admin?.rank
-    ? `${article.admin.name}(${article.admin.rank})`
-    : article.admin?.name;
+  // 작성자 이름 + 직급(공백/트림 안전)
+  const baseName = (article.admin?.name || '').toString().trim();
+  const rank = (article.admin?.rank || '').toString().trim(); // '편집장' | '기자' 등
+  const nameWithRank = rank ? `${baseName} ${rank}` : baseName;
 
-  if (article.admin?.name && article.admin?.email) {
+  const writers = [];
+  if (baseName && article.admin?.email) {
     writers.push({ name: nameWithRank, email: article.admin.email });
   } else {
+    // 이메일이 꼭 필요하므로, 없으면 공용 이메일로
     writers.push({ name: nameWithRank || '더아이오토', email: 'theiauto@naver.com' });
   }
 
   const created = article.publishedAt || article.createdAt || new Date();
   const modified = article.updatedAt || created;
 
+  // ✅ 본문에 배너(대표 이미지)를 최상단에 강제 주입
+  let body = (overrideBodyHtml ?? article.articleContent) || '<p></p>';
+  body = ensureBannerAtTop(body, article.articleBanner, article.articleTitle);
+
   return {
     contentId: ensureContentId(article),
     title: article.articleTitle?.slice(0, 500) || '(제목 없음)',
-    subtitle: (article.articleSubTitle || '').slice(0, 500),
+    subtitle: (article.articleSubTitle || '').slice(0, 500), // ✅ 소제목 포함
     categories,
     links: {
       external: { url: externalUrl },
       related: related.slice(0, 10),
     },
     writers, // 1명 이상 필수
-    bodyHtml: (overrideBodyHtml ?? article.articleContent) || '<p></p>',
+    bodyHtml: body,
     createdDate: toIsoOffsetKst(created),
     modifiedDate: toIsoOffsetKst(modified),
     enableComment,
@@ -138,8 +197,11 @@ export async function pushArticleJson(env = 'prod', articleId, options = {}) {
 
   // (선택) 본문 가공 유틸이 있다면 적용
   // const transformed = transformBodyHtmlForKakao(article.articleContent);
-  // const payload = buildDaumPayload(article, { bodyHtml: transformed });
-  const payload = buildDaumPayload(article);
+  // const payload = buildDaumPayload(article, { bodyHtml: transformed, enableComment: options?.enableComment });
+  const payload = buildDaumPayload(article, {
+    enableComment: options?.enableComment,
+    bodyHtml: options?.bodyHtml,
+  });
 
   // DRY-RUN: 실제 호출 안 함
   if (isDryRun(options)) {
@@ -179,6 +241,8 @@ export async function pushArticleJson(env = 'prod', articleId, options = {}) {
       res: res.data,
     });
 
+    logDaumSuccess('PUSH_JSON', { articleId, contentId: payload.contentId, uuid, status });
+
     return { ok: true, status: res.status, data: res.data, payloadPreview: payload };
   } catch (err) {
     const status = err?.response?.status || 500;
@@ -202,6 +266,8 @@ export async function pushArticleJson(env = 'prod', articleId, options = {}) {
       req: { payload },
       res: data,
     });
+
+    logDaumFailed('PUSH_JSON', { articleId, contentId: payload.contentId, uuid: null, status: null }, err);
 
     return { ok: false, status, data, payloadPreview: payload };
   }
@@ -232,8 +298,11 @@ export async function pushArticleWithFiles(env = 'prod', articleId, files /* mul
 
   // (선택) 업로드 파일과 bodyHtml 동기화
   // const transformedHtml = transformBodyHtmlForKakao(article.articleContent, files);
-  // const payload = buildDaumPayload(article, { bodyHtml: transformedHtml });
-  const payload = buildDaumPayload(article);
+  // const payload = buildDaumPayload(article, { bodyHtml: transformedHtml, enableComment: options?.enableComment });
+  const payload = buildDaumPayload(article, {
+    enableComment: options?.enableComment,
+    bodyHtml: options?.bodyHtml,
+  });
 
   // DRY-RUN일 때는 실제 전송하지 않음
   if (isDryRun(options)) {
@@ -285,6 +354,8 @@ export async function pushArticleWithFiles(env = 'prod', articleId, files /* mul
       res: res.data,
     });
 
+    logDaumSuccess('PUSH_FILE', { articleId, contentId: payload.contentId, uuid, status });
+
     return { ok: true, status: res.status, data: res.data, payloadPreview: payload };
   } catch (err) {
     const status = err?.response?.status || 500;
@@ -308,6 +379,8 @@ export async function pushArticleWithFiles(env = 'prod', articleId, files /* mul
       req: { payload, filenames: (files || []).map((f) => f.originalname) },
       res: data,
     });
+
+    logDaumFailed('PUSH_FILE', { articleId, contentId: payload.contentId, uuid: null, status: null }, err);
 
     return { ok: false, status, data, payloadPreview: payload };
   }
@@ -380,7 +453,7 @@ export async function deleteByContentId(env = 'prod', contentId) {
   }
 }
 
-/* ============================== 인증 확인(그대로) ============================== */
+/* ============================== 인증 확인 ============================== */
 
 export default async function checkAuth(env = 'test', method = 'GET') {
   const client = createDaumAxios(env);

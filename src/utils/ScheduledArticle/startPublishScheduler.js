@@ -18,7 +18,20 @@ export function startPublishScheduler() {
             data: { articleStatus: 'publish' },
           });
 
-          await pushArticleJson('prod', articleId);
+          const r = await pushArticleJson('prod', articleId, {
+            enableComment: process.env.DAUM_ENABLE_COMMENT_DEFAULT === 'true',
+          });
+
+          if (r?.ok) {
+            console.log(
+              `다음 기사 송고 SUCCESS | action=SCHEDULE_PUSH articleId=${articleId} contentId=${r?.payloadPreview?.contentId || ''} uuid=${r?.data?.uuid || ''} status=${r?.data?.status || ''}`
+            );
+          } else {
+            console.error(
+              `다음 기사 송고 FAILED | action=SCHEDULE_PUSH articleId=${articleId} status=${r?.status || ''} error=${r?.data?.message || ''}`
+            );
+          }
+
         } catch (err) {
           console.error('[Scheduler publish/push failed]', articleId, err?.message);
         }
